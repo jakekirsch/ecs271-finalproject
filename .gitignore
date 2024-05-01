@@ -1,0 +1,3 @@
+# add dirs to ignore
+data/test
+data/train

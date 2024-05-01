@@ -1,0 +1,6 @@
+nibabel==5.2.1
+numpy>=1.20
+pandas==2.2.1
+torch==2.3.0
+torchvision==0.18.0
+pytest==8.2.0
