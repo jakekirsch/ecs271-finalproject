@@ -16,6 +16,7 @@ def get_sample_data(dir: str = 'train', patient_number: int = 1, slice: int = 0)
     root = 'data'
     patient_stub = 'Patient_' + zero_pad(patient_number)
     example_filename = os.path.join(root, f'{dir}/{patient_stub}/{patient_stub}.nii.gz')
+    print(f"Opening: {example_filename}")
     img = nib.load(example_filename)
     # convert to Numpy array, can then convert to Tensor for pytorch model training
     data = img.get_fdata()
@@ -116,6 +117,7 @@ def gen_index_file(root: str = 'data/train'):
             patients[patient_dir] = patient_index
             index.extend(patient_index)
     
+    index.sort()
     filename = f'{root}_patient_idx.csv'
     df = pd.DataFrame(index, columns=['patient', 'slice_idx'])
     df.to_csv(filename, index=False)
