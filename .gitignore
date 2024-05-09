@@ -1,4 +1,4 @@
 # add dirs to ignore
-data/test
-data/train
-data/processed
+data/test/*
+data/train/*
+data/processed/*
