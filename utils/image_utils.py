@@ -37,6 +37,16 @@ def plot_slice(data, gt_data, slice_idx):
     axes[1].set_title('Ground Truth')
     plt.show()
 
+
+def plot_XY(data, gt_data):
+    # plot ground truth and data slices side by side
+    fig, axes = plt.subplots(1, 2, figsize=(10, 5))  # 1 row, 2 columns
+    axes[0].imshow(data[0, :, :], interpolation='nearest')
+    axes[0].set_title('Training Data')
+    axes[1].imshow(gt_data, interpolation='nearest')
+    axes[1].set_title('Ground Truth')
+    plt.show()    
+
 import nibabel as nib
 
 def load_dataset(image, label):
@@ -80,3 +90,34 @@ def unpack_images(root: str = 'data/train', output_dir: str = 'data/processed/tr
                     torch.save(slice_to_save, slice_filename)
                 if not os.path.exists(gt_filename):
                     torch.save(gt_to_save, gt_filename)
+
+
+from collections import defaultdict
+import pandas as pd 
+# generate an index csv file 
+def gen_index_file(root: str = 'data/train'):
+    """
+    Given a root directory containing the .nii images, generate a corresponding index file 
+    that can be used for Dataset 
+    """
+    patients = defaultdict(list)
+    index = []
+    for patient_dir in os.listdir(root):
+        if os.path.isdir(os.path.join(root, patient_dir)):
+            # get the image data as Tensor
+            img = nib.load(os.path.join(root, f"{patient_dir}/{patient_dir}.nii.gz"))
+            img_data = img.get_fdata()
+            img_data = torch.Tensor(img_data)
+            # slices is last index
+            num_slices = img_data.size()[2]
+            # turn into a list of tuples, [(patient_01, 1),...]
+            patient = [patient_dir]*num_slices 
+            patient_index = [(patient, idx) for patient, idx in zip(patient, range(num_slices))]
+            patients[patient_dir] = patient_index
+            index.extend(patient_index)
+    
+    filename = f'{root}_patient_idx.csv'
+    df = pd.DataFrame(index, columns=['patient', 'slice_idx'])
+    df.to_csv(filename, index=False)
+    return filename
+
