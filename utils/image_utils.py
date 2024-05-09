@@ -36,3 +36,50 @@ def plot_slice(data, gt_data, slice_idx):
     axes[1].imshow(gt_data[:, :, slice_idx], interpolation='nearest')
     axes[1].set_title('Ground Truth')
     plt.show()
+
+import nibabel as nib
+
+def load_dataset(image, label):
+    file1 = nib.load(image)
+    file2 = nib.load(label)
+    data1 = file1.get_fdata()
+    data2 = file2.get_fdata()
+    print(data1.shape)
+    return data1, data2
+
+
+
+def unpack_images(root: str = 'data/train', output_dir: str = 'data/processed/train'):
+    """
+    Run once to unpack the .nii images for each patient
+
+    Opens the image, for each slice of the data, save a separate file as a .pt
+    Same for GT data
+
+    Run for each `data/train` and `data/test`
+    """
+    # Check if the directory exists
+    if not os.path.exists(output_dir):
+        # If it doesn't exist, create it
+        os.makedirs(output_dir)
+        print(f"Directory '{output_dir}' created successfully.")
+    else:
+        print(f"Directory '{output_dir}' already exists.")
+
+    for patient_dir in os.listdir(root):
+        if os.path.isdir(os.path.join(root, patient_dir)):
+            # get the image data as Tensor
+            print(f"Opening: {patient_dir}")
+            img = nib.load(os.path.join(root, f"{patient_dir}/{patient_dir}.nii.gz"))
+            gt_img = nib.load(os.path.join(root, f'{patient_dir}/GT.nii.gz'))
+            img_data = img.get_fdata()
+            gt_data = img.get_fdata()
+            img_data = torch.Tensor(img_data)
+            gt_data = torch.Tensor(gt_data)
+            # slices is first index 
+            num_slices = img_data.size()[0]
+            for idx in range(num_slices):
+                slice_to_save = img_data[:, :, 1].unsqueeze(0)
+                gt_to_save = gt_data[:, :, 1]
+                torch.save(slice_to_save, f"{output_dir}/{patient_dir}_{idx}_X.pt")
+                torch.save(gt_to_save, f"{output_dir}/{patient_dir}_{idx}_Y.pt")
