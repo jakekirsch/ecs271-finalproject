@@ -48,16 +48,8 @@ def load_dataset(image, label):
     return data1, data2
 
 
-
+# for each file in the directory
 def unpack_images(root: str = 'data/train', output_dir: str = 'data/processed/train'):
-    """
-    Run once to unpack the .nii images for each patient
-
-    Opens the image, for each slice of the data, save a separate file as a .pt
-    Same for GT data
-
-    Run for each `data/train` and `data/test`
-    """
     # Check if the directory exists
     if not os.path.exists(output_dir):
         # If it doesn't exist, create it
@@ -81,5 +73,10 @@ def unpack_images(root: str = 'data/train', output_dir: str = 'data/processed/tr
             for idx in range(num_slices):
                 slice_to_save = img_data[:, :, 1].unsqueeze(0)
                 gt_to_save = gt_data[:, :, 1]
-                torch.save(slice_to_save, f"{output_dir}/{patient_dir}_{idx}_X.pt")
-                torch.save(gt_to_save, f"{output_dir}/{patient_dir}_{idx}_Y.pt")
+
+                slice_filename = f"{output_dir}/{patient_dir}_{idx}_X.pt"
+                gt_filename = f"{output_dir}/{patient_dir}_{idx}_Y.pt"
+                if not os.path.exists(slice_filename):
+                    torch.save(slice_to_save, slice_filename)
+                if not os.path.exists(gt_filename):
+                    torch.save(gt_to_save, gt_filename)
