@@ -16,9 +16,9 @@ class SegThorImagesDataset(Dataset):
     def __len__(self) -> int:
         return len(self.file_names)
     
-    def _filenames_from_idx(self, idx: int) -> Tuple[str, str]:
+    def _filenames_from_patient_name(self, patient_name: str) -> Tuple[str, str]:
         # return filenames X, Y for an idx (Patient_01.nii.gz, GT.nii.gz)
-        patient_name, patient_slice = self.file_names.iloc[idx, :]
+        
         patient_dir = f"{self.root_dir}/{patient_name}"
         return f"{patient_dir}/{patient_name}.nii.gz", f"{patient_dir}/GT.nii.gz"
 
@@ -26,8 +26,9 @@ class SegThorImagesDataset(Dataset):
     def __getitem__(self, idx):
         """From an idx, get filenames and slice idx from the csv file, open corresponding X,Y and return 
         the corresponding slice """
-        self.file_names.iloc[idx, 0]
-        x_file_name, y_file_name = self._filenames_from_idx(idx)
+        patient_name, patient_slice = self.file_names.iloc[idx, :]
+        x_file_name, y_file_name = self._filenames_from_patient_name(patient_name)
+        print(f"Opening: {x_file_name}")
         x_img = nib.load(x_file_name)
         y_img = nib.load(y_file_name)
         x_data = x_img.get_fdata()
@@ -35,7 +36,8 @@ class SegThorImagesDataset(Dataset):
         y_data = y_img.get_fdata()
         y_data = torch.Tensor(y_data)
 
-        X = x_data[:, :, idx].unsqueeze(0)
-        Y = y_data[:, :, idx]
+        print(f"Returning slice: {patient_slice}")
+        X = x_data[:, :, patient_slice].unsqueeze(0)
+        Y = y_data[:, :, patient_slice]
 
         return X, Y
