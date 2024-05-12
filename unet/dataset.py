@@ -3,7 +3,7 @@ from typing import Tuple
 from torch.utils.data import Dataset
 import pandas as pd
 import nibabel as nib
-# need csv of patient file names 
+from torchvision.transforms import v2 
 
 class SegThorImagesDataset(Dataset):
     """SegThor Image Dataset"""
@@ -12,6 +12,7 @@ class SegThorImagesDataset(Dataset):
         self.file_names = pd.read_csv(patient_idx_file)
         self.root_dir = root_dir 
         self.transform = transform
+        self.center_crop = v2.CenterCrop(312)
 
     def __len__(self) -> int:
         return len(self.file_names)
@@ -28,16 +29,13 @@ class SegThorImagesDataset(Dataset):
         the corresponding slice """
         patient_name, patient_slice = self.file_names.iloc[idx, :]
         x_file_name, y_file_name = self._filenames_from_patient_name(patient_name)
-        print(f"Opening: {x_file_name}")
         x_img = nib.load(x_file_name)
         y_img = nib.load(y_file_name)
         x_data = x_img.get_fdata()
         x_data = torch.Tensor(x_data)
         y_data = y_img.get_fdata()
         y_data = torch.Tensor(y_data)
-
-        print(f"Returning slice: {patient_slice}")
         X = x_data[:, :, patient_slice].unsqueeze(0)
         Y = y_data[:, :, patient_slice]
 
-        return X, Y
+        return self.center_crop(X), self.center_crop(Y)
