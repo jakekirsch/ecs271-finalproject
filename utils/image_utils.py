@@ -96,11 +96,17 @@ def unpack_images(root: str = 'data/train', output_dir: str = 'data/processed/tr
 from collections import defaultdict
 import pandas as pd 
 # generate an index csv file 
-def gen_index_file(root: str = 'data/train'):
+def gen_index_file(root: str = 'data/train', overwrite: bool = False):
     """
     Given a root directory containing the .nii images, generate a corresponding index file 
     that can be used for Dataset 
     """
+    # check if file exists 
+    filename = f'{root}_patient_idx.csv'
+    if os.path.exists(filename) and overwrite is False:
+        print(f"Filename: {filename} already exists, skipping gen")
+        return
+
     patients = defaultdict(list)
     index = []
     for patient_dir in os.listdir(root):
@@ -118,7 +124,6 @@ def gen_index_file(root: str = 'data/train'):
             index.extend(patient_index)
     
     index.sort()
-    filename = f'{root}_patient_idx.csv'
     df = pd.DataFrame(index, columns=['patient', 'slice_idx'])
     df.to_csv(filename, index=False)
     return filename

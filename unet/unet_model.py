@@ -38,26 +38,16 @@ class UNet(nn.Module):
         Forward pass on input X, segThor data is 1x512x512 with
         multiple images/slices per patient
         """
-        print(f'Input x size: {x.size()}')
         x1 = self.inc(x)
-        print(f'x1 size: {x1.size()}')
         x2 = self.down1(x1)
-        print(f'x2 size: {x2.size()}')
         x3 = self.down2(x2)
-        print(f'x3 size: {x3.size()}')
         x4 = self.down3(x3)
-        print(f'x4 size: {x4.size()}')
         x5 = self.down4(x4)
-        print(f'x5 size: {x5.size()}')
         # bottom of U is 1024 feature maps of 24x24
         x = self.up1(x5, x4)
-        print(f'x after up1: {x.size()}')
         x = self.up2(x, x3)
-        print(f'x after up2: {x.size()}')
         x = self.up3(x, x2)
-        print(f'x after up3: {x.size()}')
         x = self.up4(x, x1)
-        print(f'x after up4: {x.size()}')
         x = self.out(x)
         logits = x # we expect this to be 2 channels of output pixels
 
