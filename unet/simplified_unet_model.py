@@ -3,7 +3,7 @@ from torch import nn
 from unet.unet_layers import DoubleConv, Down, Up
 
 
-class UNet(nn.Module):
+class SimplifiedUNet(nn.Module):
     """
     Implement UNet described in 
     U-Net: Convolutional Networks for Biomedical Image Segmentation
@@ -11,23 +11,24 @@ class UNet(nn.Module):
 
     # TODO: simplified UNet SegThor paper
     """
-    def __init__(self, n_channels: int, n_classes: int = 2) -> None:
+    def __init__(self, n_channels: int, n_classes: int = 2, dropout: float = 0.2) -> None:
         """
         Default to binary classification for our project
         """
-        super(UNet, self).__init__()
+        super(SimplifiedUNet, self).__init__()
         self.n_channels = n_channels
         self.n_classes = n_classes
-        self.inc = DoubleConv(n_channels, 64)
-        self.down1 = Down(in_channels=64, out_channels=128)
-        self.down2 = Down(in_channels=128, out_channels=256)
-        self.down3 = Down(in_channels=256, out_channels=512)
+        self.dropout = dropout
+        self.inc = DoubleConv(n_channels, 64, dropout=self.dropout)
+        self.down1 = Down(in_channels=64, out_channels=128, dropout=self.dropout)
+        self.down2 = Down(in_channels=128, out_channels=256, dropout=self.dropout)
+        self.down3 = Down(in_channels=256, out_channels=512, dropout=self.dropout)
         # self.down4 = Down(in_channels=512, out_channels=1024)
         # bottom of U
         # self.up1 = Up(in_channels=1024, out_channels=512)
-        self.up2 = Up(in_channels=512, out_channels=256)
-        self.up3 = Up(in_channels=256, out_channels=128)
-        self.up4 = Up(in_channels=128, out_channels=64)
+        self.up2 = Up(in_channels=512, out_channels=256, dropout=self.dropout)
+        self.up3 = Up(in_channels=256, out_channels=128, dropout=self.dropout)
+        self.up4 = Up(in_channels=128, out_channels=64, dropout=self.dropout)
         # finally map each of the 64 feature maps to n_classes with fully connected layer
         self.out = nn.Conv2d(in_channels=64, out_channels=n_classes, kernel_size=1)
         
