@@ -7,7 +7,8 @@ class DoubleConv(nn.Module):
     """
     Convolution layer, followed by BatchNorm then ReLU. Twice
     """
-    def __init__(self, in_channels: int, out_channels: int, mid_channels: Optional[int] = None):
+    def __init__(self, in_channels: int, out_channels: int, mid_channels: Optional[int] = None,
+                 dropout: float = 0.2):
         super().__init__()
         if not mid_channels:
             mid_channels = out_channels
@@ -16,9 +17,11 @@ class DoubleConv(nn.Module):
             nn.Conv2d(in_channels, mid_channels, kernel_size=3, padding=0, bias=False),
             nn.BatchNorm2d(mid_channels),
             nn.ReLU(inplace=True),
+            nn.Dropout(p=dropout),
             nn.Conv2d(mid_channels, out_channels, kernel_size=3, padding=0, bias=False),
             nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True)
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=dropout),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -28,11 +31,11 @@ class Down(nn.Module):
     """
     Downsampling layer with MaxPool2D stride 2, followed by DoubleConv layer
     """
-    def __init__(self, in_channels: int, out_channels: int) -> None:
+    def __init__(self, in_channels: int, out_channels: int, dropout: float) -> None:
         super().__init__()
         self.down_sample = nn.Sequential(
             nn.MaxPool2d(kernel_size=2, stride=2),
-            DoubleConv(in_channels=in_channels, out_channels=out_channels)
+            DoubleConv(in_channels=in_channels, out_channels=out_channels, dropout=dropout)
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -42,11 +45,11 @@ class Up(nn.Module):
     """
     Upsampling layer using nn.ConvTranspose2D
     """
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels, out_channels, dropout: float):
         super().__init__()
         # this is the "inverse" of Conv2D
         self.up = nn.ConvTranspose2d(in_channels, in_channels // 2, kernel_size=2, stride=2, padding=0)
-        self.conv = DoubleConv(in_channels, out_channels)
+        self.conv = DoubleConv(in_channels, out_channels, dropout=dropout)
     
     def forward(self, x1, x2):
         x1 = self.up(x1) # upscale using the ConvTranspose2d
