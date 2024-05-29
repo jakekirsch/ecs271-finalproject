@@ -39,15 +39,35 @@ def plot_slice(data, gt_data, slice_idx):
     plt.show()
 
 
-def plot_XY(data, gt_data):
+def plot_XY(data, gt_data, titles = ('Training Data', 'Ground Truth')):
     # plot ground truth and data slices side by side
     fig, axes = plt.subplots(1, 2, figsize=(10, 5))  # 1 row, 2 columns
-    axes[0].imshow(data[0, :, :], interpolation='nearest')
-    axes[0].set_title('Training Data')
+    axes[0].imshow(data, interpolation='nearest')
+    axes[0].set_title(titles[0])
     axes[1].imshow(gt_data, interpolation='nearest')
-    axes[1].set_title('Ground Truth')
+    axes[1].set_title(titles[1])
     plt.show()    
+    
+def plot_XY_pred_class(model, X, Y):
+    # plot the predicted classes into a single chart
+    pred_classes = model.predict_classes(X.unsqueeze(0))
+    pred_classes = pred_classes.to('cpu')
+    X = X.to('cpu')
+    Y = Y.to('cpu')
+    plot_XY(X[0, :, :].squeeze(0), Y.squeeze(0))
+    plot_XY(X[0, :, :].squeeze(0), pred_classes.squeeze(0), titles=("training data", "predicted classes"))
+        
 
+def plot_XY_for_preds(model, X, Y):
+    # plot the predicted probabilities for each class 
+    probas = model.predict_probabilities(X.unsqueeze(0))
+    pred = probas.detach()
+    plot_XY(X[0, :, :].squeeze(0), Y.squeeze(0))
+    
+    for i in range(4):
+        plot_XY(X[0, :, :].squeeze(0), pred.squeeze(0)[i,:,:],
+                                titles=("Training Data", f"Predictions Class {i}"))        
+        
 import nibabel as nib
 
 def load_dataset(image, label):
@@ -96,19 +116,36 @@ def unpack_images(root: str = 'data/train', output_dir: str = 'data/processed/tr
 from collections import defaultdict
 import pandas as pd 
 # generate an index csv file 
-def gen_index_file(root: str = 'data/train', overwrite: bool = False):
+def gen_index_file(root: str = 'data/train', overwrite: bool = False, test_patients = [31, 32, 33, 34, 35, 36, 37, 38, 39, 40]):
     """
     Given a root directory containing the .nii images, generate a corresponding index file 
     that can be used for Dataset 
     """
     # check if file exists 
-    filename = f'{root}_patient_idx.csv'
-    if os.path.exists(filename) and overwrite is False:
-        print(f"Filename: {filename} already exists, skipping gen")
+    train_filename = 'data/train_patient_idx.csv'
+    test_filename = 'data/test_patient_idx.csv'
+    if os.path.exists(train_filename) and overwrite is False:
+        print(f"Filename: {train_filename} already exists, skipping gen")
         return
+    
+    # check if 
+    if os.path.exists(test_filename) and overwrite is False:
+        print(f"Filename: {test_filename} already exists, skipping")
+        return 
+    
+    
+    # Convert list of test patients to a list of strings
+    test_patient_strs = [str(patient) for patient in test_patients]
+    # Function to check if directory name contains any of the test patient digits
+    def contains_test_patient(directory_name, patient_list):
+        for patient in patient_list:
+            if patient in directory_name:
+                return True
+        return False
 
     patients = defaultdict(list)
-    index = []
+    train_index = []
+    test_index = []
     for patient_dir in os.listdir(root):
         if os.path.isdir(os.path.join(root, patient_dir)):
             # get the image data as Tensor
@@ -121,10 +158,18 @@ def gen_index_file(root: str = 'data/train', overwrite: bool = False):
             patient = [patient_dir]*num_slices 
             patient_index = [(patient, idx) for patient, idx in zip(patient, range(num_slices))]
             patients[patient_dir] = patient_index
-            index.extend(patient_index)
+            if contains_test_patient(patient_dir, test_patient_strs):
+                test_index.extend(patient_index)
+            else:
+                train_index.extend(patient_index)
     
-    index.sort()
-    df = pd.DataFrame(index, columns=['patient', 'slice_idx'])
-    df.to_csv(filename, index=False)
-    return filename
+    test_index.sort()
+    train_index.sort()
+    
+    train_df = pd.DataFrame(train_index, columns=['patient', 'slice_idx'])
+    test_df = pd.DataFrame(test_index, columns=['patient', 'slice_idx'])
+
+    train_df.to_csv(train_filename, index=False)
+    test_df.to_csv(test_filename, index=False)
+    return train_filename, test_filename
 
