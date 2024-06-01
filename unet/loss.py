@@ -1,6 +1,88 @@
 import torch
 import torch.nn as nn
 
+class RectificationLoss(nn.Module):
+    """
+    Given input from two models and 1 label, implement the Contrastive Discrepancy Review loss
+    """
+    def __init__(self, classes = [0, 1, 2, 3, 4], weighted: bool = True):
+        super().__init__()
+        self.classes = classes
+        self.weighted = weighted
+        self.mse = weighted_MSELoss()
+        
+    def _probas_to_class_channels(self, probas_1):
+        """
+        Convert the probabilities of dim [batch x channel x height x width] to labels 0/1. 
+        A 1 in the channel means that pixel is labeled that channel (e.g. [batch x 3 x h x w] = 1 --> that pixel is a label 3)
+        """
+        # Find the indices of the maximum values along the channels dimension
+        max_indices = torch.argmax(probas_1, dim=1, keepdim=True)
+        predicted_channels = torch.zeros_like(probas_1)
+        predicted_channels = predicted_channels.scatter_(1, max_indices, 1)
+        return predicted_channels
+    
+    def _targets_to_class_channels(self, targets):
+        """
+        Convert the targets [batch x h x w] to [batch x channel x h x w] where a 1 in the channel
+        corresponds to a label
+        """
+        
+        assert len(targets.shape) == 3, f"targets shape: {targets.shape} not 3"
+        targets_shape = targets.shape
+        bs = targets_shape[0]
+        channels = len(self.classes)
+        height = targets_shape[1]
+        width = targets_shape[2]
+        target_channels = torch.zeros((bs, channels, height, width))
+        for c in self.classes:
+            target_channels[:, c, :, :] = (targets.unsqueeze(1) == c).int()
+        return target_channels
+    
+    def _disagreement_mask(self, predicted_channels_1, predicted_channels_2):
+        return torch.logical_xor(predicted_channels_1, predicted_channels_2)
+    
+    
+    
+    def forward(self, probas_1, probas_2, targets):
+        assert len(probas_1.shape) == 4, f"{probas_1.shape} is not correct dimension"
+        assert len(probas_2.shape) == 4, f"{probas_2.shape} is not correct dimension"
+        assert probas_1.shape == probas_2.shape, f"{probas_1.shape} != {probas_2.shape}"
+        # per channel
+        predicted_channels_1 = self._probas_to_class_channels(probas_1)
+        predicted_channels_2 = self._probas_to_class_channels(probas_2)
+        target_channels = self._targets_to_class_channels(targets)
+        # get region of disagreement between the two predictions for each channel
+        mask = self._disagreement_mask(predicted_channels_1, predicted_channels_2)
+        # now clip the predictions to the masked area for each channel 
+        clipped_pred_1 = torch.logical_and(mask, predicted_channels_1)
+        clipped_pred_2 = torch.logical_and(mask, predicted_channels_2)
+        clipped_y = torch.logical_and(mask, target_channels)
+        
+        
+        # use size of the disagreement region as the weight
+        weights = mask.sum(dim=(-1, -2))
+        weights = weights.unsqueeze(-1).unsqueeze(-1) # add back the dimensions
+
+        rectification_loss_1 = self.mse(clipped_pred_1.float(), clipped_y.float(), weights)
+        rectification_loss_2 = self.mse(clipped_pred_2.float(), clipped_y.float(), weights)
+        return rectification_loss_1, rectification_loss_2
+        
+
+
+class weighted_MSELoss(nn.Module):
+
+    def forward(self, inputs, targets, weights):
+        assert weights.shape[0] == inputs.shape[0], f"weights.shape: {weights.shape} not expected dimensions"
+        assert weights.shape[1] == inputs.shape[1], f"weights.shape: {weights.shape} not expected dimensions"
+        assert weights.shape[2] == 1, f"weights.shape: {weights.shape} not expected dimensions"
+        assert weights.shape[3] == 1, f"weights.shape: {weights.shape} not expected dimensions"
+        
+        weighted_SE = (((inputs - targets)**2 ) * weights)
+        # mean across H x W and Channel
+        return weighted_SE.mean(dim=(-1, -2, -3))
+
+
 
 class GeneralizedDiceLoss(nn.Module):
     """
@@ -74,3 +156,7 @@ def print_dice_by_category(category_means, labels = {0: 'background', 1: 'esopha
     result = ', '.join(output)
     print(result)
 
+
+    
+    
+    
