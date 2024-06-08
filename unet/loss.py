@@ -36,7 +36,7 @@ class RectificationLoss(nn.Module):
         width = targets_shape[2]
         target_channels = torch.zeros((bs, channels, height, width))
         for c in self.classes:
-            target_channels[:, c, :, :] = (targets.unsqueeze(1) == c).int()
+            target_channels[:, c, :, :] = (targets == c).int()
         return target_channels
     
     def _disagreement_mask(self, predicted_channels_1, predicted_channels_2):
